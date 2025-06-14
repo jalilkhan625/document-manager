@@ -3,26 +3,66 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, InputLabel, MenuItem, FormControl, Select, Box
 } from '@mui/material';
+import { listenToFolders } from '../utils/db';
 
 export default function FileDialog({
   open,
   onClose,
   onSave,
   initialName,
-  folders = [],
   allowUpload = false
 }) {
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
   const [folderId, setFolderId] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
+  const [folders, setFolders] = useState([]);
 
   useEffect(() => {
     setName(initialName || '');
-    if (folders.length > 0) {
-      setFolderId(folders[0].id);
-    }
-  }, [initialName, folders]);
+  }, [initialName]);
+
+  useEffect(() => {
+    const unsubscribe = listenToFolders((data) => {
+      const flat = Object.entries(data || {}).map(([id, folder]) => ({ id, ...folder }));
+      const tree = buildFolderTree(flat);
+      const flatList = flattenWithPath(tree);
+      setFolders(flatList);
+
+      if (flatList.length > 0) {
+        setFolderId(flatList[0].id);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const buildFolderTree = (flat) => {
+    const map = {};
+    const roots = [];
+
+    flat.forEach(f => {
+      map[f.id] = { ...f, children: [] };
+    });
+
+    flat.forEach(f => {
+      if (f.parentId && map[f.parentId]) {
+        map[f.parentId].children.push(map[f.id]);
+      } else if (!f.parentId) {
+        roots.push(map[f.id]);
+      }
+    });
+
+    return roots.sort((a, b) => a.name.localeCompare(b.name));
+  };
+
+  const flattenWithPath = (nodes, prefix = '') => {
+    return nodes.flatMap((node) => {
+      const path = prefix ? `${prefix} / ${node.name}` : node.name;
+      const children = node.children?.length > 0 ? flattenWithPath(node.children, path) : [];
+      return [{ id: node.id, path }].concat(children);
+    });
+  };
 
   const handleSave = () => {
     if (allowUpload && file) {
@@ -75,7 +115,7 @@ export default function FileDialog({
               >
                 {folders.map(folder => (
                   <MenuItem key={folder.id} value={folder.id}>
-                    {folder.name}
+                    {folder.path}
                   </MenuItem>
                 ))}
               </Select>

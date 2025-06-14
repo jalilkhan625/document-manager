@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box } from '@mui/material';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import FolderGrid from './components/FolderGrid';
+import FolderDetailView from './components/FolderDetailView';
 import FileViewerDialog from './components/FileViewerDialog';
 import FolderDialog from './components/FolderDialog';
 import FileDialog from './components/FileDialog';
+
 import {
   createFolder,
   createFile,
@@ -14,45 +16,71 @@ import {
   renameFolder,
   deleteFolder,
   renameFile,
-  deleteFile,
+  deleteFile
 } from './utils/db';
 
 function App() {
-  const [folders, setFolders] = useState([]);
-  const [selectedFolderId, setSelectedFolderId] = useState(null);
-  const [expandedFolderId, setExpandedFolderId] = useState(null);
-  const [folderFilesMap, setFolderFilesMap] = useState({});
-  const [isFolderDialogOpen, setFolderDialogOpen] = useState(false);
-  const [folderToEdit, setFolderToEdit] = useState(null);
+  const [allFolders, setAllFolders] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);
+  const [folderStack, setFolderStack] = useState([]); // breadcrumb
+  const [subfolders, setSubfolders] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [viewedFile, setViewedFile] = useState(null);
   const [fileToEdit, setFileToEdit] = useState(null);
+  const [folderToEdit, setFolderToEdit] = useState(null);
+  const [folderParent, setFolderParent] = useState(null);
   const [isFileDialogOpen, setFileDialogOpen] = useState(false);
+  const [isFolderDialogOpen, setFolderDialogOpen] = useState(false);
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isGridView, setIsGridView] = useState(true);
-  const [viewedFile, setViewedFile] = useState(null);
 
-  useEffect(() => {
-    loadFolders();
-  }, []);
+  const currentFolder = folderStack[folderStack.length - 1] || null;
 
-  const loadFolders = async () => {
-    const folderData = await fetchFolders();
-    const folderList = Object.entries(folderData || {}).map(([id, data]) => ({ id, ...data }));
-    setFolders(folderList);
-    if (!selectedFolderId && folderList.length > 0) {
-      setSelectedFolderId(folderList[0].id);
-    }
+  const loadData = async () => {
+    const foldersSnap = await fetchFolders();
+    const filesSnap = await fetchFiles();
+    const folders = Object.entries(foldersSnap || {}).map(([id, f]) => ({ id, ...f }));
+    const files = Object.entries(filesSnap || {}).map(([id, f]) => ({ id, ...f }));
+    setAllFolders(folders);
+    setAllFiles(files);
   };
 
-  const handleExpandFolder = async (folder) => {
-    const fileData = await fetchFiles();
-    const fileList = Object.entries(fileData || {}).map(([id, data]) => ({ id, ...data }));
-    const filtered = fileList.filter(f => f.folderId === folder.id);
-    setExpandedFolderId(folder.id);
-    setFolderFilesMap(prev => ({ ...prev, [folder.id]: filtered }));
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (!currentFolder) {
+      setSubfolders(allFolders.filter(f => !f.parentId));
+      setFiles([]);
+    } else {
+      const children = allFolders.filter(f => f.parentId === currentFolder.id);
+      setSubfolders(children);
+
+      if (children.length === 0) {
+        const folderFiles = allFiles.filter(f => f.folderId === currentFolder.id);
+        setFiles(folderFiles);
+      } else {
+        setFiles([]);
+      }
+    }
+  }, [currentFolder, allFolders, allFiles]);
+
+  const refreshAndStay = () => {
+    loadData().then(() => {
+      if (currentFolder) setFolderStack([...folderStack]);
+    });
   };
 
   const handleNewFolder = () => {
     setFolderToEdit(null);
+    setFolderParent(null);
+    setFolderDialogOpen(true);
+  };
+
+  const handleAddSubfolder = (folder) => {
+    setFolderToEdit(null);
+    setFolderParent(folder);
     setFolderDialogOpen(true);
   };
 
@@ -63,21 +91,46 @@ function App() {
 
   const handleDeleteFolder = async (folder) => {
     await deleteFolder(folder.id);
-    setFolders(prev => prev.filter(f => f.id !== folder.id));
-    if (selectedFolderId === folder.id) setSelectedFolderId(null);
+    refreshAndStay();
   };
 
   const handleSaveFolder = async (name) => {
-    if (folderToEdit) {
-      await renameFolder(folderToEdit.id, name);
-    } else {
-      await createFolder(name);
+    try {
+      if (folderToEdit) {
+        await renameFolder(folderToEdit.id, name);
+      } else {
+        const parentId = folderParent?.id || currentFolder?.id || null;
+        await createFolder(name, parentId);
+      }
+      setFolderDialogOpen(false);
+      setFolderToEdit(null);
+      setFolderParent(null);
+      refreshAndStay();
+    } catch (err) {
+      console.error('Save Folder Error:', err);
     }
-    setFolderDialogOpen(false);
-    loadFolders();
   };
 
-  const handleNewFile = () => setUploadDialogOpen(true);
+  const handleUploadFile = async ({ file, name, folderId, newFolderName }) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const content = reader.result;
+        let targetFolderId = folderId || currentFolder?.id;
+
+        if (newFolderName) {
+          targetFolderId = await createFolder(newFolderName, currentFolder?.id);
+        }
+
+        await createFile(name, targetFolderId, content);
+        setUploadDialogOpen(false);
+        refreshAndStay();
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Upload File Error:', err);
+    }
+  };
 
   const handleRenameFile = (file) => {
     setFileToEdit(file);
@@ -86,62 +139,54 @@ function App() {
 
   const handleDeleteFile = async (file) => {
     await deleteFile(file.id);
-    setFolderFilesMap(prev => ({
-      ...prev,
-      [file.folderId]: prev[file.folderId]?.filter(f => f.id !== file.id)
-    }));
+    setFiles(prev => prev.filter(f => f.id !== file.id));
   };
 
-  const handleSaveFile = async (name) => {
+  const handleSaveFile = async (newName) => {
     if (fileToEdit) {
-      await renameFile(fileToEdit.id, name);
+      await renameFile(fileToEdit.id, newName);
+      setFiles(prev => prev.map(f => f.id === fileToEdit.id ? { ...f, name: newName } : f));
+      setFileDialogOpen(false);
     }
-    setFileDialogOpen(false);
-    if (fileToEdit?.folderId) handleExpandFolder({ id: fileToEdit.folderId });
   };
 
-  const handleUploadFile = async ({ file, name, folderId, newFolderName }) => {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const content = reader.result;
-      let targetFolderId = folderId;
+  const handleFolderClick = (folder) => {
+    setFolderStack(prev => [...prev, folder]);
+  };
 
-      if (newFolderName) {
-        targetFolderId = await createFolder(newFolderName);
-        loadFolders();
-      }
-
-      await createFile(name, targetFolderId || null, content);
-      setUploadDialogOpen(false);
-      if (targetFolderId) handleExpandFolder({ id: targetFolderId });
-    };
-    reader.readAsDataURL(file);
+  const handleBack = () => {
+    setFolderStack(prev => prev.slice(0, -1));
   };
 
   return (
     <Box display="flex">
-      <Sidebar folders={folders} selected={null} onSelect={() => {}} />
+      <Sidebar onSelect={(folder) => setFolderStack([folder])} />
       <Box flex={1}>
         <TopBar
           onNewFolder={handleNewFolder}
-          onNewFile={handleNewFile}
+          onNewFile={() => setUploadDialogOpen(true)}
           isGridView={isGridView}
           onToggleView={() => setIsGridView(prev => !prev)}
         />
-
-        <FolderGrid
-          folders={folders}
-          onSelect={handleExpandFolder}
-          onRename={handleRenameFolder}
-          onDelete={handleDeleteFolder}
-          onExpand={handleExpandFolder}
-          isGridView={isGridView}
-          folderFilesMap={folderFilesMap}
-          expandedFolderId={expandedFolderId}
-          onFileRename={handleRenameFile}
-          onFileDelete={handleDeleteFile}
-          onFileView={(file) => setViewedFile(file)}
-        />
+        {currentFolder && subfolders.length === 0 ? (
+          <FolderDetailView
+            folder={currentFolder}
+            files={files}
+            onBack={handleBack}
+            onDeleteFile={handleDeleteFile}
+            onRenameFile={handleRenameFile}
+            onViewFile={setViewedFile}
+          />
+        ) : (
+          <FolderGrid
+            folders={subfolders}
+            onSelect={handleFolderClick}
+            onRename={handleRenameFolder}
+            onDelete={handleDeleteFolder}
+            onAddSubfolder={handleAddSubfolder}
+            isGridView={isGridView}
+          />
+        )}
       </Box>
 
       <FolderDialog
@@ -160,7 +205,6 @@ function App() {
         open={isUploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
         onSave={handleUploadFile}
-        folders={folders}
         allowUpload
       />
       <FileViewerDialog file={viewedFile} onClose={() => setViewedFile(null)} />
