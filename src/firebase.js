@@ -1,23 +1,22 @@
+// firebaseConfig.js
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, signInAnonymously } from "firebase/auth";
 
-// Your config
+// Use environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBleq9HzSz1ojqJaYnqp6eIatb27uDT35k",
-  authDomain: "document-manager-db.firebaseapp.com",
-  databaseURL: "https://document-manager-db-default-rtdb.firebaseio.com",
-  projectId: "document-manager-db",
-  storageBucket: "document-manager-db.appspot.com",
-  messagingSenderId: "314755013257",
-  appId: "1:314755013257:web:414cb6e050c58996ac4458"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 
-// Sign in anonymously
 const auth = getAuth(app);
 signInAnonymously(auth).catch((error) => {
   console.error("Anonymous sign-in failed", error);
