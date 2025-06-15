@@ -2,6 +2,8 @@
 
 **Documento** is a professional and fully functional document management system built using **React** and **Firebase Realtime Database**. It allows users to create folders, upload and manage files inside or outside folders, rename items, and view documents in a clean, responsive UI.
 
+---
+
 ## 🚀 Features
 
 - 🗂️ Create, rename, and delete folders
@@ -13,12 +15,16 @@
 - 👁️ File preview in a new window with download option
 - 🌐 Responsive layout using **Material UI**
 
+---
+
 ## 🛠️ Tech Stack
 
 - **Frontend:** React, Material UI
 - **Backend:** Firebase Realtime Database
 - **File Storage:** Firebase Realtime Database (no Firebase Storage used)
 - **State Management:** React Hooks (`useState`, `useEffect`, `useCallback`)
+
+---
 
 ## 📦 Installation
 
