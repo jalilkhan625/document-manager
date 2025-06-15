@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box } from '@mui/material';
+
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import FolderGrid from './components/FolderGrid';
@@ -22,7 +23,7 @@ import {
 function App() {
   const [allFolders, setAllFolders] = useState([]);
   const [allFiles, setAllFiles] = useState([]);
-  const [folderStack, setFolderStack] = useState([]); // breadcrumb
+  const [folderStack, setFolderStack] = useState([]);
   const [subfolders, setSubfolders] = useState([]);
   const [files, setFiles] = useState([]);
   const [viewedFile, setViewedFile] = useState(null);
@@ -33,6 +34,7 @@ function App() {
   const [isFolderDialogOpen, setFolderDialogOpen] = useState(false);
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isGridView, setIsGridView] = useState(true);
+  const [sortOption, setSortOption] = useState('name-asc');
 
   const currentFolder = folderStack[folderStack.length - 1] || null;
 
@@ -50,21 +52,49 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!currentFolder) {
-      setSubfolders(allFolders.filter(f => !f.parentId));
-      setFiles([]);
-    } else {
-      const children = allFolders.filter(f => f.parentId === currentFolder.id);
-      setSubfolders(children);
+    let subfoldersList = [];
+    let fileList = [];
 
-      if (children.length === 0) {
-        const folderFiles = allFiles.filter(f => f.folderId === currentFolder.id);
-        setFiles(folderFiles);
-      } else {
-        setFiles([]);
+    if (!currentFolder) {
+      subfoldersList = allFolders.filter(f => !f.parentId);
+    } else {
+      subfoldersList = allFolders.filter(f => f.parentId === currentFolder.id);
+      if (subfoldersList.length === 0) {
+        fileList = allFiles.filter(f => f.folderId === currentFolder.id);
       }
     }
-  }, [currentFolder, allFolders, allFiles]);
+
+    // Sort folders and files based on current sortOption
+    subfoldersList = sortItems(subfoldersList, sortOption);
+    fileList = sortItems(fileList, sortOption);
+
+    setSubfolders(subfoldersList);
+    setFiles(fileList);
+  }, [currentFolder, allFolders, allFiles, sortOption]);
+
+  const sortItems = (items, option) => {
+    if (!items || items.length === 0) return items;
+    const sorted = [...items];
+
+    switch (option) {
+      case 'name-asc':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name-desc':
+        sorted.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'date-asc':
+        sorted.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        break;
+      case 'date-desc':
+        sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        break;
+      default:
+        break;
+    }
+
+    return sorted;
+  };
 
   const refreshAndStay = () => {
     loadData().then(() => {
@@ -159,34 +189,40 @@ function App() {
   };
 
   return (
-    <Box display="flex">
-      <Sidebar onSelect={(folder) => setFolderStack([folder])} />
-      <Box flex={1}>
-        <TopBar
-          onNewFolder={handleNewFolder}
-          onNewFile={() => setUploadDialogOpen(true)}
-          isGridView={isGridView}
-          onToggleView={() => setIsGridView(prev => !prev)}
-        />
-        {currentFolder && subfolders.length === 0 ? (
-          <FolderDetailView
-            folder={currentFolder}
-            files={files}
-            onBack={handleBack}
-            onDeleteFile={handleDeleteFile}
-            onRenameFile={handleRenameFile}
-            onViewFile={setViewedFile}
-          />
-        ) : (
-          <FolderGrid
-            folders={subfolders}
-            onSelect={handleFolderClick}
-            onRename={handleRenameFolder}
-            onDelete={handleDeleteFolder}
-            onAddSubfolder={handleAddSubfolder}
-            isGridView={isGridView}
-          />
-        )}
+    <Box display="flex" flexDirection="column" height="100vh">
+      <TopBar
+        onNewFolder={handleNewFolder}
+        onNewFile={() => setUploadDialogOpen(true)}
+        isGridView={isGridView}
+        onToggleView={() => setIsGridView(prev => !prev)}
+        onSortChange={(option) => setSortOption(option)}
+        onRefresh={refreshAndStay}
+      />
+
+      <Box display="flex" flex={1} overflow="hidden">
+        <Sidebar onSelect={(folder) => setFolderStack([folder])} />
+
+        <Box flex={1} overflow="auto">
+          {currentFolder && subfolders.length === 0 ? (
+            <FolderDetailView
+              folder={currentFolder}
+              files={files}
+              onBack={handleBack}
+              onDeleteFile={handleDeleteFile}
+              onRenameFile={handleRenameFile}
+              onViewFile={setViewedFile}
+            />
+          ) : (
+            <FolderGrid
+              folders={subfolders}
+              onSelect={handleFolderClick}
+              onRename={handleRenameFolder}
+              onDelete={handleDeleteFolder}
+              onAddSubfolder={handleAddSubfolder}
+              isGridView={isGridView}
+            />
+          )}
+        </Box>
       </Box>
 
       <FolderDialog

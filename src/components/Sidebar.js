@@ -109,13 +109,20 @@ export default function Sidebar({ selected, onSelect }) {
           <ListItemButton
             selected={selected === folder.id}
             onClick={() => onSelect(folder)}
-            sx={{ pl: 2 + level * 2 }}
+            sx={{
+              pl: 2 + level * 2,
+              bgcolor: selected === folder.id ? '#1976d2' : 'transparent',
+              color: selected === folder.id ? '#fff' : 'inherit',
+              '&:hover': {
+                bgcolor: selected === folder.id ? '#1565c0' : '#e0e0e0',
+              },
+            }}
           >
-            <ListItemIcon>
+            <ListItemIcon sx={{ color: '#FFD700' }}>
               {folder.locked ? <LockIcon fontSize="small" /> : <FolderIcon />}
             </ListItemIcon>
             <ListItemText primary={folder.name} />
-            {hasChildren || files.length > 0 ? (
+            {(hasChildren || files.length > 0) ? (
               isOpen ? (
                 <ExpandLess onClick={(e) => { e.stopPropagation(); handleToggle(folder.id); }} />
               ) : (
@@ -134,7 +141,7 @@ export default function Sidebar({ selected, onSelect }) {
                     sx={{ pl: 4 + level * 2 }}
                     onClick={() => onSelect({ ...file, isFile: true })}
                   >
-                    <ListItemIcon>
+                    <ListItemIcon sx={{ color: '#757575' }}>
                       <InsertDriveFileIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary={file.name} />
@@ -149,7 +156,7 @@ export default function Sidebar({ selected, onSelect }) {
   };
 
   return (
-    <Box sx={{ width: 240, bgcolor: '#f0f0f0', height: '100vh', overflowY: 'auto' }}>
+    <Box sx={{ width: 500, bgcolor: '#f0f0f0', height: '100vh', overflowY: 'auto' }}>
       <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="subtitle1" fontWeight="bold">Folders</Typography>
         <Tooltip title={isAllExpanded ? 'Collapse All' : 'Expand All'}>

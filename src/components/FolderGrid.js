@@ -20,16 +20,17 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export default function FolderGrid({
   folders = [],
-  onSelect,           // Called to enter subfolder or view files
+  onSelect,
   onRename,
   onDelete,
   onAddSubfolder,
   isGridView,
-  path = [],          // breadcrumb
-  onBack              // go back
+  path = [],
+  onBack
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [search, setSearch] = useState('');
 
   const handleMenuOpen = (e, folder) => {
     e.stopPropagation();
@@ -50,8 +51,12 @@ export default function FolderGrid({
     handleMenuClose();
   };
 
+  const filteredFolders = folders.filter(folder =>
+    folder.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   const renderFolders = () =>
-    folders.map(folder => {
+    filteredFolders.map(folder => {
       const folderContent = (
         <Box
           onClick={() => onSelect(folder)}
@@ -99,6 +104,51 @@ export default function FolderGrid({
           </Button>
         </Box>
       )}
+
+      {/* Files title and search field */}
+      <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
+        <Typography variant="h6" fontWeight="bold">
+          Files
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            border: '1px solid #ccc',
+            borderRadius: 2,
+            px: 1,
+            py: 0.5,
+            width: 250,
+            backgroundColor: '#fff'
+          }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            height="20"
+            viewBox="0 0 24 24"
+            width="20"
+            fill="#6e6e6e"
+            style={{ marginRight: 8 }}
+          >
+            <path d="M0 0h24v24H0z" fill="none" />
+            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zM9.5 14C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search Files"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              border: 'none',
+              outline: 'none',
+              width: '100%',
+              fontSize: '14px',
+              color: '#333',
+              background: 'transparent'
+            }}
+          />
+        </Box>
+      </Box>
 
       {isGridView ? (
         <Grid container spacing={2}>

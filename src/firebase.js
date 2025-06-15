@@ -2,15 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth, signInAnonymously } from "firebase/auth";
 
-// Your config
+// Firebase config from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyBleq9HzSz1ojqJaYnqp6eIatb27uDT35k",
-  authDomain: "document-manager-db.firebaseapp.com",
-  databaseURL: "https://document-manager-db-default-rtdb.firebaseio.com",
-  projectId: "document-manager-db",
-  storageBucket: "document-manager-db.appspot.com",
-  messagingSenderId: "314755013257",
-  appId: "1:314755013257:web:414cb6e050c58996ac4458"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.REACT_APP_FIREBASE_DB_URL,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
